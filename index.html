@@ -31,19 +31,25 @@
             border-radius: 8px;
             border: none;
             font-size: 1rem;
+            width: 90%;
+            max-width: 400px;
+            box-sizing: border-box;
         }
         button {
             background-color: #38bdf8;
             color: #0f172a;
             cursor: pointer;
         }
+        .result, .next-days, .summary {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 15px;
+        }
         .result {
             margin-top: 20px;
             background: #334155;
-            padding: 15px;
             border-radius: 10px;
-            width: 90%;
-            max-width: 600px;
         }
         .actions {
             display: flex;
@@ -53,11 +59,8 @@
         }
         .next-days {
             background: #334155;
-            padding: 15px;
             border-radius: 10px;
             margin-top: 20px;
-            width: 90%;
-            max-width: 600px;
         }
         .day {
             display: flex;
@@ -71,10 +74,7 @@
         .summary {
             background: #1e293b;
             margin-top: 20px;
-            padding: 15px;
             border-radius: 10px;
-            width: 90%;
-            max-width: 600px;
         }
         .summary p {
             margin: 5px 0;
@@ -146,7 +146,7 @@
             let classesNeeded = 0;
             if (currentTarget > currentPercent) {
                 classesNeeded = Math.ceil((currentTarget * currentTotal - 100 * currentAttended) / (100 - currentTarget));
-                message += `<br>You need to attend <strong>${classesNeeded}</strong> more classes to reach ${currentTarget}%`;
+                message += `<br>You need to attend <strong>${classesNeeded}</strong> more classes to reach ${currentTarget}%.`;
             } else {
                 message += `<br>You've already reached your target attendance of ${currentTarget}%`;
             }
@@ -192,10 +192,7 @@
             }
 
             let tomorrow = new Date(startDate);
-            do {
-                tomorrow.setDate(tomorrow.getDate() + 1);
-            } while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6);
-
+            tomorrow.setDate(tomorrow.getDate() + 1);
             let tomorrowStr = tomorrow.toDateString();
 
             if (!skippedDates.includes(tomorrowStr)) {
@@ -226,7 +223,9 @@
 
                 if (date.getDay() !== 0 && date.getDay() !== 6) {
                     let dateStr = date.toDateString();
-                    if (skippedDates.includes(dateStr)) continue;
+                    if (skippedDates.includes(dateStr)) {
+                        continue;
+                    }
 
                     tempAttended += currentPerDay;
                     tempTotal += currentPerDay;
