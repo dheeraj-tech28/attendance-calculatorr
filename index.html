@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Calculator</title>
+    <title>Attendance Tracker</title>
     <style>
         body {
             background-color: #0f172a;
             color: #e2e8f0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #1e293b;
+            padding: 15px;
+        }
+        main {
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
         }
-        h1 {
-            color: #38bdf8;
-            margin-bottom: 10px;
-        }
-        input, select, button {
+        input, button {
             margin: 10px;
             padding: 10px;
             border-radius: 8px;
@@ -30,166 +37,228 @@
             color: #0f172a;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #0ea5e9;
-        }
-        .container {
-            background: #1e293b;
-            padding: 20px;
-            border-radius: 12px;
-            max-width: 600px;
-            width: 100%;
-            margin-top: 20px;
-        }
         .result {
             margin-top: 20px;
             background: #334155;
             padding: 15px;
             border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
         }
-        .panel {
-            background: #475569;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 8px;
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
-        ul {
-            margin-top: 10px;
+        .next-days {
+            background: #334155;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            width: 90%;
+            max-width: 600px;
         }
-        ul li {
+        .day {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        .skipped {
+            color: #f87171;
+            font-weight: bold;
+        }
+        .summary {
+            background: #1e293b;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+        }
+        .summary p {
             margin: 5px 0;
         }
     </style>
 </head>
 <body>
-
-    <h1>Attendance Calculator</h1>
-
-    <div class="container">
+    <header>
+        <h1>Attendance Calculator</h1>
+    </header>
+    <main>
         <input type="number" id="attended" placeholder="Classes Attended">
         <input type="number" id="total" placeholder="Total Classes Held">
-        <input type="number" id="perDayClasses" placeholder="Classes Per Day (default 6)" value="6">
-        <input type="number" id="target" placeholder="Target % (default 75%)" value="75">
+        <input type="number" id="perDay" placeholder="Lectures Per Day">
+        <input type="number" id="target" placeholder="Target Attendance %">
+        <input type="date" id="startDate">
 
-        <div class="panel">
-            <label>Do you know your last working day?</label><br>
-            <select id="modeSelect" onchange="toggleLastDate()">
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-            </select>
+        <div class="actions">
+            <button onclick="calculateAttendance()">Calculate</button>
+            <button onclick="skipTomorrow()">📉 Skip Tomorrow</button>
+            <button onclick="resetAll()">🔄 Reset</button>
         </div>
-
-        <div id="lastDatePanel" style="display: none;">
-            <input type="date" id="lastDate" placeholder="Last Working Date">
-        </div>
-
-        <button onclick="calculateAttendance()">Calculate</button>
 
         <div class="result" id="result"></div>
-    </div>
+
+        <div class="next-days" id="nextDays">
+            <h3>Next 10 School Days Attendance</h3>
+            <div id="dayList"></div>
+        </div>
+
+        <div class="summary" id="summaryBox" style="display:none">
+            <h3>Attendance Summary</h3>
+            <p id="sum_attended"></p>
+            <p id="sum_total"></p>
+            <p id="sum_percent"></p>
+            <p id="sum_target"></p>
+            <p id="sum_needed"></p>
+            <p id="sum_canSkip"></p>
+        </div>
+    </main>
 
     <script>
-        function toggleLastDate() {
-            let mode = document.getElementById('modeSelect').value;
-            if (mode === 'yes') {
-                document.getElementById('lastDatePanel').style.display = 'block';
-            } else {
-                document.getElementById('lastDatePanel').style.display = 'none';
-            }
-        }
+        let skippedDates = [];
+        let currentAttended = 0;
+        let currentTotal = 0;
+        let currentPerDay = 0;
+        let currentTarget = 75;
 
         function calculateAttendance() {
-            let attended = parseInt(document.getElementById('attended').value);
-            let total = parseInt(document.getElementById('total').value);
-            let perDayClasses = parseInt(document.getElementById('perDayClasses').value) || 6;
-            let target = parseInt(document.getElementById('target').value) || 75;
-            let mode = document.getElementById('modeSelect').value;
+            currentAttended = parseInt(document.getElementById('attended').value) || 0;
+            currentTotal = parseInt(document.getElementById('total').value) || 0;
+            currentPerDay = parseInt(document.getElementById('perDay').value) || 0;
+            currentTarget = parseInt(document.getElementById('target').value) || 75;
+            let startDate = new Date(document.getElementById('startDate').value);
 
-            if (isNaN(attended) || isNaN(total)) {
-                alert("Please fill in attended and total classes.");
+            if (isNaN(currentAttended) || isNaN(currentTotal) || isNaN(currentPerDay)) {
+                alert("Please fill in all required fields.");
                 return;
             }
 
-            let currentPercentage = (attended / total) * 100;
-            let classesNeeded = Math.ceil((target * total - 100 * attended) / (100 - target));
-
-            let skippableClasses = 0;
-            if (currentPercentage > target) {
-                skippableClasses = Math.floor((attended * 100 - target * total) / target);
+            if (currentAttended > currentTotal) {
+                alert("Attended classes cannot be more than total classes.");
+                return;
             }
 
-            let today = new Date();
-            let todayStr = today.toDateString();
+            let currentPercent = (currentAttended / currentTotal) * 100;
+            let message = `<strong>Current Attendance:</strong> ${currentPercent.toFixed(2)}%`;
 
-            let message = `<strong>Current Attendance:</strong> ${currentPercentage.toFixed(2)}%<br>`;
-
-            if (currentPercentage < target) {
-                message += `You need to attend <strong>${classesNeeded}</strong> more classes without absence to reach ${target}%.<br>`;
+            let classesNeeded = 0;
+            if (currentTarget > currentPercent) {
+                classesNeeded = Math.ceil((currentTarget * currentTotal - 100 * currentAttended) / (100 - currentTarget));
+                message += `<br>You need to attend <strong>${classesNeeded}</strong> more classes to reach ${currentTarget}%`;
             } else {
-                message += `🎉 Congratulations! You can skip <strong>${skippableClasses}</strong> classes and still maintain ${target}% attendance.<br>`;
+                message += `<br>You've already reached your target attendance of ${currentTarget}%`;
             }
 
-            message += `<div class='panel'><strong>Today's Date:</strong> ${todayStr}</div>`;
+            let bufferClasses = 0;
+            let daysCanSkip = 0;
+            let classesCanSkip = 0;
+            if (currentPercent >= 75) {
+                bufferClasses = currentAttended - (0.75 * currentTotal);
+                daysCanSkip = Math.floor(bufferClasses / currentPerDay);
+                classesCanSkip = Math.floor(bufferClasses);
 
-            if (mode === 'no') {
-                message += `<div class='panel'><strong>Without last date:</strong><br>
-                Each day if you attend all ${perDayClasses} classes, your attendance will improve daily!</div>`;
-            } else {
-                let lastDateInput = document.getElementById('lastDate').value;
-                if (lastDateInput) {
-                    let lastDate = new Date(lastDateInput);
-                    let daysLeft = countWorkingDays(today, lastDate);
-                    let futureTotalClasses = total + daysLeft * perDayClasses;
-                    let futureAttendedClasses = attended + daysLeft * perDayClasses;
-                    let futurePercentage = (futureAttendedClasses / futureTotalClasses) * 100;
-
-                    let futureSkippable = 0;
-                    if (futurePercentage > target) {
-                        futureSkippable = Math.floor((futureAttendedClasses * 100 - target * futureTotalClasses) / target);
-                    }
-
-                    message += `<div class='panel'><strong>Last Working Date:</strong> ${lastDate.toDateString()}<br>
-                    <strong>Working Days Left (excluding Sat/Sun):</strong> ${daysLeft} days<br>
-                    <strong>Predicted Attendance on Last Date:</strong> ${futurePercentage.toFixed(2)}%<br>
-                    <strong>Classes you can skip after predicted attendance:</strong> ${futureSkippable}</div>`;
-
-                    message += `<div class='panel'><strong>Daily Attendance Progress:</strong><ul>`;
-                    let tempTotal = total;
-                    let tempAttended = attended;
-                    let tempDate = new Date(today);
-                    for (let i = 0; i < daysLeft; i++) {
-                        tempDate.setDate(tempDate.getDate() + 1);
-                        if (tempDate.getDay() !== 0 && tempDate.getDay() !== 6) {
-                            tempTotal += perDayClasses;
-                            tempAttended += perDayClasses;
-                            let tempPercent = (tempAttended / tempTotal) * 100;
-                            message += `<li>${tempDate.toDateString()}: ${tempPercent.toFixed(2)}%</li>`;
-                        }
-                    }
-                    message += `</ul></div>`;
-                } else {
-                    message += `<div class='panel'>Please select a last working date!</div>`;
+                if (bufferClasses > 0) {
+                    message += `<br><strong>Congratulations!</strong> You can skip:`;
+                    message += `<br>- ${daysCanSkip} full days (${daysCanSkip * currentPerDay} classes)`;
+                    message += `<br>- Or ${classesCanSkip} individual classes`;
+                    message += `<br>and still maintain ≥75% attendance`;
                 }
             }
 
             document.getElementById('result').innerHTML = message;
+            updateNextDays(startDate);
+
+            document.getElementById('summaryBox').style.display = 'block';
+            document.getElementById('sum_attended').innerHTML = `<strong>Classes Attended:</strong> ${currentAttended}`;
+            document.getElementById('sum_total').innerHTML = `<strong>Total Classes:</strong> ${currentTotal}`;
+            document.getElementById('sum_percent').innerHTML = `<strong>Current Attendance:</strong> ${currentPercent.toFixed(2)}%`;
+            document.getElementById('sum_target').innerHTML = `<strong>Target Attendance:</strong> ${currentTarget}%`;
+            document.getElementById('sum_needed').innerHTML = `<strong>Classes Needed to Reach Target:</strong> ${classesNeeded}`;
+            document.getElementById('sum_canSkip').innerHTML = `<strong>Classes You Can Skip:</strong> ${classesCanSkip} classes or ${daysCanSkip} days`;
         }
 
-        function countWorkingDays(start, end) {
-            let count = 0;
-            let current = new Date(start);
-            current.setDate(current.getDate() + 1);
-
-            while (current <= end) {
-                let day = current.getDay();
-                if (day !== 0 && day !== 6) {
-                    count++;
-                }
-                current.setDate(current.getDate() + 1);
+        function skipTomorrow() {
+            if (currentPerDay === 0) {
+                alert("Please enter lectures per day first.");
+                return;
             }
-            return count;
-        }
-    </script>
 
+            let startDate = new Date(document.getElementById('startDate').value);
+            if (isNaN(startDate.getTime())) {
+                alert("Please select a valid start date.");
+                return;
+            }
+
+            let tomorrow = new Date(startDate);
+            do {
+                tomorrow.setDate(tomorrow.getDate() + 1);
+            } while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6);
+
+            let tomorrowStr = tomorrow.toDateString();
+
+            if (!skippedDates.includes(tomorrowStr)) {
+                skippedDates.push(tomorrowStr);
+                currentTotal += currentPerDay;
+                document.getElementById('total').value = currentTotal;
+                document.getElementById('startDate').valueAsDate = tomorrow;
+            }
+
+            let newPercent = (currentAttended / currentTotal) * 100;
+            let message = `<strong>If you skip tomorrow (${tomorrowStr}):</strong><br>Attendance will be <strong>${newPercent.toFixed(2)}%</strong>`;
+            document.getElementById('result').innerHTML = message;
+
+            updateNextDays(tomorrow);
+        }
+
+        function updateNextDays(startDate) {
+            if (isNaN(startDate.getTime())) return;
+
+            let date = new Date(startDate);
+            let dayListHTML = '';
+            let tempAttended = currentAttended;
+            let tempTotal = currentTotal;
+            let daysAdded = 0;
+
+            while (daysAdded < 10) {
+                date.setDate(date.getDate() + 1);
+
+                if (date.getDay() !== 0 && date.getDay() !== 6) {
+                    let dateStr = date.toDateString();
+                    if (skippedDates.includes(dateStr)) continue;
+
+                    tempAttended += currentPerDay;
+                    tempTotal += currentPerDay;
+                    dayListHTML += `
+                        <div class="day">
+                            <span>${dateStr}</span>
+                            <span>Attendance: ${((tempAttended / tempTotal) * 100).toFixed(2)}%</span>
+                        </div>
+                    `;
+                    daysAdded++;
+                }
+            }
+
+            document.getElementById('dayList').innerHTML = dayListHTML;
+        }
+
+        function resetAll() {
+            document.getElementById('attended').value = '';
+            document.getElementById('total').value = '';
+            document.getElementById('perDay').value = '';
+            document.getElementById('target').value = '';
+            document.getElementById('startDate').valueAsDate = new Date();
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('dayList').innerHTML = '';
+            document.getElementById('summaryBox').style.display = 'none';
+            skippedDates = [];
+            currentAttended = 0;
+            currentTotal = 0;
+            currentPerDay = 0;
+        }
+
+        document.getElementById('startDate').valueAsDate = new Date();
+    </script>
 </body>
 </html>
